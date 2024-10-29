@@ -67,10 +67,11 @@ DROP TABLE 학생3;
 -- 새로운 manager 계정 만든다
 SELECT current_user; -- postgres (기본 사용자)
 
-CREATE USER manager WITH PASSWORD '1234';
-GRANT ALL PRIVILEGES ON DATABASE univdb TO manager;
+CREATE USER aaron WITH PASSWORD '1234';
+GRANT ALL PRIVILEGES ON DATABASE univdb TO aaron;
+GRANT ALL PRIVILEGES ON 학생2, 수강2, 과목2 TO aaron;
 
-ALTER DATABASE univdb OWNER TO manager; -- postgres 계정만 실행할 수 있다
+ALTER DATABASE univdb OWNER TO aaron; -- postgres 계정만 실행할 수 있다
 
 -- TRY
 -- GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO manager;
@@ -84,6 +85,8 @@ ALTER DATABASE univdb OWNER TO manager; -- postgres 계정만 실행할 수 있�
 SELECT current_user; -- manager (새로운 사용자!!!)
 
 -- 뷰
+DROP VIEW IF EXISTS V3_고학년여학생;
+DROP VIEW IF EXISTS V2_과목수강현황;
 DROP VIEW IF EXISTS V1_고학년학생;
 
 -- manager 계정으로 변경
@@ -91,31 +94,55 @@ CREATE VIEW V1_고학년학생(학생이름, 나이, 성, 학년) AS
 	SELECT 이름, 나이, 성별, 학년 FROM 학생2
 	WHERE 학년 >= 3 AND 학년 >=4;
 
--- SELECT * FROM V1_고학년학생;
+SELECT * FROM V1_고학년학생;
 
 CREATE VIEW V2_과목수강현황(과목번호, 강의실, 수강인원수) AS
-	SELECT 과목.과목번호, 강의실, COUNT(과목.과목번호)
-	FROM 과목 JOIN 수강 ON 과목.과목번호 = 수강.과목번호
-	GROUP BY 과목.과목번호;
+	SELECT 과목2.과목번호, 강의실, COUNT(과목2.과목번호)
+	FROM 과목2 JOIN 수강2 ON 과목2.과목번호 = 수강2.과목번호
+	GROUP BY 과목2.과목번호;
 
--- SELECT * FROM V2_과목수강현황;
+SELECT * FROM V2_과목수강현황;
 
 CREATE VIEW V3_고학년여학생 AS
 	SELECT * FROM V1_고학년학생
 	WHERE 성 = '여';
 
--- SELECT * FROM V3_고학년여학생;
+SELECT * FROM V3_고학년여학생;
 
 -- 인덱스
-CREATE INDEX idx_수강 ON 수강(학번, 과목번호); -- 오류: 소유자만 가능 있다면, postgres 계정에서 실행
+ALTER DEFAULT PRIVILEGES IN SCHEMA public
+  GRANT SELECT, INSERT, UPDATE, DELETE
+  ON TABLES TO manager;
 
-CREATE UNIQUE INDEX idx_과목 ON 과목(이름 ASC);
+SELECT * FROM pg_namespace;
+GRANT ALL ON SCHEMA public TO aaron;
+ALTER TABLE 학생2 OWNER TO aaron;
+ALTER TABLE 수강2 OWNER TO aaron;
+ALTER TABLE 과목2 OWNER TO aaron;
 
-CREATE UNIQUE INDEX idx_학생 ON 학생(학번);
+DROP INDEX IF EXISTS idx_수강;
+DROP INDEX IF EXISTS idx_과목;
+DROP INDEX IF EXISTS idx_학생;
+
+CREATE INDEX idx_수강 ON 수강2(학번, 과목번호); -- 오류: 소유자만 가능 있다면, postgres 계정에서 실행
+
+CREATE UNIQUE INDEX idx_과목 ON 과목2(이름 ASC);
+
+CREATE UNIQUE INDEX idx_학생 ON 학생2(학번);
 
 -- SHOW INDEX FROM 학생; -- MySQL만
 
+-- 한 테이블의 모든 인덱스 표시
+SELECT
+  indexname,
+  indexdef
+FROM
+  pg_indexes
+WHERE
+  tablename = '수강2';
 
+-- 2023 슬라이드 8장, #32부터
+EXPLAIN ANALYZE SELECT * FROM 수강2;
 
 
 
